@@ -203,6 +203,8 @@ class massActionCRN( object ):
         self._debug = debug
         self._debug_name = "[MA CRN]"
 
+        self._name = name
+
         self._species_name = species_name
         self._x0           = x0
         self._rates        = rates
@@ -249,7 +251,8 @@ class massActionCRN( object ):
     def __str__( self ):
         """ Returns a pretty string summarizing the CRN.
         """
-        to_return = "initial relative concentrations:\n"
+        to_return = "{}".format(self._name)+"\n"
+        to_return += "initial relative concentrations:\n"
         for specie in self._x0:
             to_return += "{}:{} ".format( specie, self._x0[specie] )
 
@@ -278,6 +281,7 @@ class massActionCRN( object ):
         """
         history = self.integrate()
         plt.figure( figsize = figsize )
+        plt.title( self._name )
 
         for i, specie in enumerate( self.get_species_names() ):
             plt.plot( history[ :, i ], label = specie )
@@ -296,7 +300,7 @@ class massActionCRN( object ):
         def func( **kwargs ):
             global system_label
 
-            new_crn = massActionCRN( self._species_name, self._x0, kwargs, self._reactions, self._debug )
+            new_crn = massActionCRN( self._name, self._species_name, self._x0, kwargs, self._reactions, self._debug )
 
             str_repr = str( new_crn  )
             system_label = widgets.Textarea( str_repr, disabled = True,
@@ -306,6 +310,7 @@ class massActionCRN( object ):
             display( system_label )
 
         rates_widget = OrderedDict({})
+
         for rate in self._rates:
             widget = widgets.FloatSlider( value = self._rates[ rate ],
                                                 min   = 1e-4,
@@ -317,7 +322,7 @@ class massActionCRN( object ):
 
         #w = interactive(func, {'manual': manual }, **rates_widget )
         output = interactive_output(func, rates_widget)
-        output.layout.height = '720px'
+        output.layout.height = '740px'
 
 
         return widgets.VBox( [ output ] + list( rates_widget.values() ) )
