@@ -1,6 +1,6 @@
 import numpy as np
 import matplotlib.pyplot as plt
-plt.style.use('dark_background')
+#plt.style.use('dark_background')
 from functools import reduce
 import re
 from collections import OrderedDict
@@ -60,6 +60,8 @@ class massActionJSON( object ):
         """ Parses the mass action JSON specification.
             Returns the corresponding CRN object.
         """
+        self._name = self._json_dict['name']
+
         self._species_name = list( self._json_dict[ 'species' ].keys() )
         self._x0 = OrderedDict(map(lambda kv: (kv[0], float(kv[1])),
                                self._json_dict[ 'species' ].items()))
@@ -77,8 +79,8 @@ class massActionJSON( object ):
                 for rr in self._reactions[ r ]:
                     print("\t", rr)
 
-        return massActionCRN( self._species_name, self._x0, self._rates,
-                              self._reactions, self._debug-1 )
+        return massActionCRN( self._name, self._species_name, self._x0,
+                              self._rates,self._reactions, self._debug-1 )
 
     def _get_rates( self ):
         """ Returns the rates in the appropriate format (c.f. class massActionCRN).
@@ -178,22 +180,25 @@ class massActionJSON( object ):
 
 class massActionCRN( object ):
 
-    def __init__( self, species_name, x0, rates, reactions, debug = 0 ):
+    def __init__( self, name, species_name, x0, rates, reactions, debug = 0 ):
         """
-            species_name: list of the name of species, the order matters as it
-                          fixes the order in all vectors of species (e.g. x0_np)
-
-            x0: ordered dict species_name -> float, giving initial relative
-                concentrations. The values should sum to oneself.
-
-            rates: ordered dict rate_name -> float, gives the rates of each
-                   reaction. Rates name are k#i with i the index of the reaction
-                   or k#-i if reverse rate.
-
-            reactions: ordered dict of 2-tuples. Keys are reaction string
-                       e.g.: X+Y -> Z, and values are reactions.
-                       A reaction is a tuple of reactant/product relative stochiometry.
-                       e.g.: (np.array([-1,-1,0]),np.array([0,0,1]))
+            name: str
+                Name of the CRN.
+            species_name: list of str
+                List of the name of species, the order matters as it fixes the
+                order in all vectors of species (e.g. x0_np).
+            x0: OrderedDict: str -> float
+                Gives initial relative concentrations for each specie.
+                The values should sum to one.
+            rates: OrderedDict str -> float
+                Gives rates for each reaction. Rates are named with str:
+                    -k#i with i the index of the reaction
+                    -k#-i if reverse rate.
+            reactions: OrderedDict: str -> list of 2-tuples.
+                Keys are reaction string e.g.: X+Y -> Z, and values are reaction list.
+                These lists contain one or two element depending on `->` or `<->`.
+                A reaction is a tuple of reactant/product relative stochiometry.
+                e.g.: (np.array([-1,-1,0]),np.array([0,0,1]))
         """
         self._debug = debug
         self._debug_name = "[MA CRN]"
@@ -265,6 +270,21 @@ class massActionCRN( object ):
 
         return to_return
 
+    def get_species_names( self ):
+        return self._species_name
+
+    def plot_dynamics( self, figsize = (20, 10) ):
+        """ Plots the CRN dynamics.
+        """
+        history = self.integrate()
+        plt.figure( figsize = figsize )
+
+        for i, specie in enumerate( self.get_species_names() ):
+            plt.plot( history[ :, i ], label = specie )
+
+        plt.legend()
+        plt.show()
+
     def build_UI( self, manual = True ):
         """ Builds an interactive UI for the CRN.
         """
@@ -282,16 +302,7 @@ class massActionCRN( object ):
             system_label = widgets.Textarea( str_repr, disabled = True,
                                              rows = 1 + str_repr.count("\n") )
 
-            history = new_crn.integrate()
-
-            plt.figure( figsize = ( 20, 10 ) )
-
-            for i, specie in enumerate( new_crn._species_name ):
-                plt.plot( history[ :, i ], label = specie )
-
-            plt.legend()
-            plt.show()
-
+            new_crn.plot_dynamics()
             display( system_label )
 
         rates_widget = OrderedDict({})
