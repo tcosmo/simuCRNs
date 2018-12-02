@@ -1,6 +1,8 @@
 {
     "type": "mass action",
     
+    "name": "Test CRN",
+    
     "species": {
         "X": "0.5",
         "Y": "0.25",
