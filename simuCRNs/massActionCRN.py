@@ -276,12 +276,15 @@ class massActionCRN( object ):
     def get_species_names( self ):
         return self._species_name
 
-    def plot_dynamics( self, figsize = (20, 10) ):
+    def plot_dynamics( self, figsize = (8, 6), dpi = 80 ):
         """ Plots the CRN dynamics.
         """
         history = self.integrate()
-        plt.figure( figsize = figsize )
+        plt.figure( figsize = figsize, dpi = dpi )
         plt.title( self._name )
+
+        plt.xlabel('Time (s)')
+        plt.ylabel('Relative concentrations')
 
         for i, specie in enumerate( self.get_species_names() ):
             plt.plot( history[ :, i ], label = specie )
@@ -289,8 +292,24 @@ class massActionCRN( object ):
         plt.legend()
         plt.show()
 
-    def build_UI( self, manual = True ):
+    def build_UI( self, default_sliders_config, sliders_config = {},
+                  ui_horizontal = True,
+                  figsize = (8, 6), dpi = 80, layout_height = '740px' ):
         """ Builds an interactive UI for the CRN.
+
+            default_sliders_config: tuple
+                Default (min,max,step) for sliders.
+            sliders_config: dict: str -> tuple
+                Specifies the (min, max, step) of slider of rate `rate_name`.
+            ui_horizontal: bool
+                If True then the controlers will be displayed horizontally to
+                the plot. If False, vertically.
+            figsize: tuple
+                Figure size for `plot_dynamics`.
+            dpi: int
+                Figure dpi for `plot_dynamics`.
+            layout_height: str
+                Height of the plot layout, useful to adjust for small / big screens.
         """
 
         str_repr = str( self )
@@ -306,27 +325,33 @@ class massActionCRN( object ):
             system_label = widgets.Textarea( str_repr, disabled = True,
                                              rows = 1 + str_repr.count("\n") )
 
-            new_crn.plot_dynamics()
+            new_crn.plot_dynamics( figsize, dpi )
             display( system_label )
 
         rates_widget = OrderedDict({})
 
         for rate in self._rates:
+            config = default_sliders_config
+            if rate in sliders_config:
+                config = sliders_config[ rate ]
+
             widget = widgets.FloatSlider( value = self._rates[ rate ],
-                                                min   = 1e-4,
-                                                max   = 1e-2,
-                                                step  = 1e-8,
-                                                description = "rate {}".format( rate ),
-                                                readout_format='.4f', )
+                                          min   = config[ 0 ],
+                                          max   = config[ 1 ],
+                                          step  = config[ 2 ],
+                                          description = "rate {}".format( rate ),
+                                          readout_format='.2e', )
             rates_widget[ rate ] = widget
 
         #w = interactive(func, {'manual': manual }, **rates_widget )
         output = interactive_output(func, rates_widget)
-        output.layout.height = '740px'
+        output.layout.height = layout_height
 
 
-        return widgets.VBox( [ output ] + list( rates_widget.values() ) )
+        encapsulation = widgets.HBox if ui_horizontal else widgets.VBox
 
+        return encapsulation( [ output ] +
+                             [ widgets.VBox( list( rates_widget.values() ) ) ] )
 
     def integrate( self ):
         """ Integrates the dynamical system and gives the simulation results.
