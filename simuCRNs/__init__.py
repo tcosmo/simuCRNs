@@ -1,5 +1,6 @@
 import json
 import simuCRNs.massActionCRN
+import simuCRNs.uiCRNs
 
 from collections import OrderedDict
 

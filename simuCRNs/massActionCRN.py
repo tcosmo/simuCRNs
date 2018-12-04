@@ -4,9 +4,7 @@ import matplotlib.pyplot as plt
 from functools import reduce
 import re
 from collections import OrderedDict
-from ipywidgets import interact, interactive, fixed, interact_manual, interactive_output
 import scipy.integrate as integrate
-import ipywidgets as widgets
 import copy
 
 class massActionJSON( object ):
@@ -236,6 +234,21 @@ class massActionCRN( object ):
             print(self._debug_name+"reactants_matrix:", self._reactants_matrix)
             print(self._debug_name+"gamma:", self._gamma)
 
+    def get_name( self ):
+        return self._name
+
+    def get_rates( self ):
+        return self._rates
+
+    def get_species_names( self ):
+        return self._species_name
+
+    def get_reactions( self ):
+        return self._reactions
+
+    def get_x0( self ):
+        return self._x0
+
     def _get_rate_list( self, i_reaction ):
         """ Return the rate list corresponding to reaction with index `i_reaction`.
         """
@@ -249,7 +262,7 @@ class massActionCRN( object ):
 
         return rate_list
 
-    def _get_rate_unit( self, rate_name ):
+    def get_rate_unit( self, rate_name ):
         """ Returns the unit of rate `rate_name`. E.g.:
             3X + 5Y -> 2Z (k1)
             The unit of k1 is
@@ -285,9 +298,6 @@ class massActionCRN( object ):
 
         return to_return
 
-    def get_species_names( self ):
-        return self._species_name
-
     def plot_dynamics( self, figsize = (8, 6), dpi = 80 ):
         """ Plots the CRN dynamics.
         """
@@ -304,99 +314,7 @@ class massActionCRN( object ):
         plt.legend()
         plt.show()
 
-    def build_UI( self, default_sliders_config, sliders_config = {},
-                  step_for_float_text = 0.1,
-                  ui_horizontal = True,
-                  figsize = (8, 6), dpi = 80, layout_height = '740px' ):
-        """ Builds an interactive UI for the CRN.
-
-            default_sliders_config: tuple
-                Default (min,max,step) for sliders.
-            sliders_config: dict: str -> tuple
-                Specifies the (min, max, step) of slider of rate `rate_name`.
-            step_for_float_text: float
-                Increment step for x0 `FloatText` widgets.
-            ui_horizontal: bool
-                If True then the controlers will be displayed horizontally to
-                the plot. If False, vertically.
-            figsize: tuple
-                Figure size for `plot_dynamics`.
-            dpi: int
-                Figure dpi for `plot_dynamics`.
-            layout_height: str
-                Height of the plot layout, useful to adjust for small / big screens.
-        """
-
-        str_repr = str( self )
-        system_label = widgets.Textarea( str_repr, disabled = True,
-                                         rows = 1 + str_repr.count("\n") )
-
-        def func( **kwargs ):
-            global system_label
-
-            new_rates = OrderedDict( {} )
-            for rate in self._rates:
-                new_rates[ rate ] = kwargs[ rate ]
-
-            new_x0 = OrderedDict( {} )
-            for specie in self._species_name:
-                new_x0[ specie ] = kwargs[ '#'+specie ]
-
-            new_crn = massActionCRN( self._name, self._species_name, new_x0,
-                                     new_rates, self._reactions, self._debug )
-
-            str_repr = str( new_crn  )
-            system_label = widgets.Textarea( str_repr, disabled = True,
-                                             rows = 1 + str_repr.count("\n") )
-
-            new_crn.plot_dynamics( figsize, dpi )
-            display( system_label )
-
-        rates_widget = OrderedDict({})
-        rates_widget_unit = OrderedDict({})
-        for rate in self._rates:
-            config = default_sliders_config
-            if rate in sliders_config:
-                config = sliders_config[ rate ]
-
-            widget = widgets.FloatSlider( value = self._rates[ rate ],
-                                          min   = config[ 0 ],
-                                          max   = config[ 1 ],
-                                          step  = config[ 2 ],
-                                          description = "rate {}".format( rate ),
-                                          readout_format='.2e', )
-            rates_widget[ rate ] = widget
-            rates_widget_unit[ rate ] = widgets.HBox( [ widget,
-                widgets.HTMLMath(
-                    value=self._get_rate_unit( rate ),
-                    ) ] )
-
-        x0_widget = OrderedDict( {} )
-        for specie in self._species_name:
-            widget = widgets.BoundedFloatText( value = self._x0[ specie ],
-                                               min = 0.0,
-                                               step = step_for_float_text,
-                                               description = specie + " (Mol)" )
-            x0_widget[ '#'+specie ] = widget
-
-
-
-
-        all_widgets = OrderedDict(list(rates_widget.items()) +
-                                  list(x0_widget.items()))
-        all_widgets_units = OrderedDict(list(rates_widget_unit.items()) +
-                                  list(x0_widget.items()))
-        #w = interactive(func, {'manual': manual }, **rates_widget )
-        output = interactive_output(func, all_widgets)
-        output.layout.height = layout_height
-
-
-        encapsulation = widgets.HBox if ui_horizontal else widgets.VBox
-
-        return encapsulation( [ output ] +
-                              [ widgets.VBox( list( all_widgets_units.values() ) ) ] )
-
-    def integrate( self ):
+    def integrate( self, duration = 20000, nb_points = 10000 ):
         """ Integrates the dynamical system and gives the simulation results.
         """
         time = np.linspace(0, 20000, 10000)
