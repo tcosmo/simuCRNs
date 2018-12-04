@@ -249,6 +249,14 @@ class massActionCRN( object ):
 
         return rate_list
 
+    def _get_rate_unit( self, rate_name ):
+        """ Returns the unit of rate `rate_name`. E.g.:
+            3X + 5Y -> 2Z (k1)
+            The unit of k1 is
+        """
+        i = list( self._rates.keys() ).index( rate_name )
+        return "Mol{}s-1".format(1+self._reaction_list[ i ][ 0 ].sum().astype(np.int64))
+
     def __str__( self ):
         """ Returns a pretty string summarizing the CRN.
         """
@@ -345,6 +353,7 @@ class massActionCRN( object ):
             display( system_label )
 
         rates_widget = OrderedDict({})
+        rates_widget_unit = OrderedDict({})
         for rate in self._rates:
             config = default_sliders_config
             if rate in sliders_config:
@@ -357,17 +366,25 @@ class massActionCRN( object ):
                                           description = "rate {}".format( rate ),
                                           readout_format='.2e', )
             rates_widget[ rate ] = widget
+            rates_widget_unit[ rate ] = widgets.HBox( [ widget,
+                widgets.HTMLMath(
+                    value=self._get_rate_unit( rate ),
+                    ) ] )
 
         x0_widget = OrderedDict( {} )
         for specie in self._species_name:
             widget = widgets.BoundedFloatText( value = self._x0[ specie ],
                                                min = 0.0,
                                                step = step_for_float_text,
-                                               description = specie )
+                                               description = specie + " (Mol)" )
             x0_widget[ '#'+specie ] = widget
 
 
+
+
         all_widgets = OrderedDict(list(rates_widget.items()) +
+                                  list(x0_widget.items()))
+        all_widgets_units = OrderedDict(list(rates_widget_unit.items()) +
                                   list(x0_widget.items()))
         #w = interactive(func, {'manual': manual }, **rates_widget )
         output = interactive_output(func, all_widgets)
@@ -377,7 +394,7 @@ class massActionCRN( object ):
         encapsulation = widgets.HBox if ui_horizontal else widgets.VBox
 
         return encapsulation( [ output ] +
-                              [ widgets.VBox( list( all_widgets.values() ) ) ] )
+                              [ widgets.VBox( list( all_widgets_units.values() ) ) ] )
 
     def integrate( self ):
         """ Integrates the dynamical system and gives the simulation results.
