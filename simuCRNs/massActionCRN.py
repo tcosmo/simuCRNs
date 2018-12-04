@@ -9,7 +9,6 @@ import scipy.integrate as integrate
 import ipywidgets as widgets
 import copy
 
-
 class massActionJSON( object ):
     """ Parser for a mass action CRN specified in JSON.
         It will construct the object necessary to create a `massActionCRN` instanceself.
@@ -179,6 +178,7 @@ class massActionJSON( object ):
 
 
 class massActionCRN( object ):
+    #TODO: relative concentrations or not??
 
     def __init__( self, name, species_name, x0, rates, reactions, debug = 0 ):
         """
@@ -211,7 +211,8 @@ class massActionCRN( object ):
         self._reactions    = reactions
 
         self._x0_np = np.array( list( self._x0.values() ) )
-        self._check_x0_np()
+        self._x0_np /= self._x0_np.sum()
+        #self._check_x0_np()
 
         self._rates_np = np.array( list( self._rates.values() ) )
 
@@ -252,9 +253,12 @@ class massActionCRN( object ):
         """ Returns a pretty string summarizing the CRN.
         """
         to_return = "{}".format(self._name)+"\n"
-        to_return += "initial relative concentrations:\n"
+        to_return += "initial concentrations:\n"
         for specie in self._x0:
             to_return += "{}:{} ".format( specie, self._x0[specie] )
+        to_return += "\n\ninitial concentrations normalised:\n"
+        for i,specie in enumerate(self._x0):
+            to_return += "{}:{:.2e} ".format( specie, self._x0_np[i] )
 
         to_return += "\n\nreactions:\n"
 
@@ -293,6 +297,7 @@ class massActionCRN( object ):
         plt.show()
 
     def build_UI( self, default_sliders_config, sliders_config = {},
+                  step_for_float_text = 0.1,
                   ui_horizontal = True,
                   figsize = (8, 6), dpi = 80, layout_height = '740px' ):
         """ Builds an interactive UI for the CRN.
@@ -301,6 +306,8 @@ class massActionCRN( object ):
                 Default (min,max,step) for sliders.
             sliders_config: dict: str -> tuple
                 Specifies the (min, max, step) of slider of rate `rate_name`.
+            step_for_float_text: float
+                Increment step for x0 `FloatText` widgets.
             ui_horizontal: bool
                 If True then the controlers will be displayed horizontally to
                 the plot. If False, vertically.
@@ -319,7 +326,16 @@ class massActionCRN( object ):
         def func( **kwargs ):
             global system_label
 
-            new_crn = massActionCRN( self._name, self._species_name, self._x0, kwargs, self._reactions, self._debug )
+            new_rates = OrderedDict( {} )
+            for rate in self._rates:
+                new_rates[ rate ] = kwargs[ rate ]
+
+            new_x0 = OrderedDict( {} )
+            for specie in self._species_name:
+                new_x0[ specie ] = kwargs[ '#'+specie ]
+
+            new_crn = massActionCRN( self._name, self._species_name, new_x0,
+                                     new_rates, self._reactions, self._debug )
 
             str_repr = str( new_crn  )
             system_label = widgets.Textarea( str_repr, disabled = True,
@@ -329,7 +345,6 @@ class massActionCRN( object ):
             display( system_label )
 
         rates_widget = OrderedDict({})
-
         for rate in self._rates:
             config = default_sliders_config
             if rate in sliders_config:
@@ -343,15 +358,26 @@ class massActionCRN( object ):
                                           readout_format='.2e', )
             rates_widget[ rate ] = widget
 
+        x0_widget = OrderedDict( {} )
+        for specie in self._species_name:
+            widget = widgets.BoundedFloatText( value = self._x0[ specie ],
+                                               min = 0.0,
+                                               step = step_for_float_text,
+                                               description = specie )
+            x0_widget[ '#'+specie ] = widget
+
+
+        all_widgets = OrderedDict(list(rates_widget.items()) +
+                                  list(x0_widget.items()))
         #w = interactive(func, {'manual': manual }, **rates_widget )
-        output = interactive_output(func, rates_widget)
+        output = interactive_output(func, all_widgets)
         output.layout.height = layout_height
 
 
         encapsulation = widgets.HBox if ui_horizontal else widgets.VBox
 
         return encapsulation( [ output ] +
-                             [ widgets.VBox( list( rates_widget.values() ) ) ] )
+                              [ widgets.VBox( list( all_widgets.values() ) ) ] )
 
     def integrate( self ):
         """ Integrates the dynamical system and gives the simulation results.
