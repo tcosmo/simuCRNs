@@ -13,6 +13,15 @@ os.chdir("../")
 ```
 - Have fun :)
 
+# Structure
+
+- `bin/`: git ignored folder for user stuff (notebooks, tests, etc...).    
+- `CRNs/`: folder with example CRNs specifications.    
+- `default.nix`: nix script to setup the environment.
+- `Interaction 101.ipynb`: ipywidget short tutorial, how to build an UI in notebooks.    
+- `simuCRNs`: python package for CRN simulation.   
+- `SimuCRNs_demo.ipynb`: main demo (c.f. Getting Started).
+
 # TODO
 
 - Adding time in UI    
